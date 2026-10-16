@@ -14,6 +14,8 @@ compare prices across my preferred discounters.
 | Fragrance info | Search any fragrance in-app and see the full profile on my site |
 | Prices | On demand ("Check prices" button per cologne), USD |
 | Extras (wear log, compliments) | Not now |
+| Fragrance data | Live AI lookup (approved) |
+| Database | Shared "World Cup" Supabase project (free plan's 2-project limit); all tables prefixed `cologne_`, access limited to the `cologne_members` allowlist |
 
 ## Fragrance data — how "live" search works
 
@@ -57,7 +59,8 @@ the app shows a direct "search on this site" link instead.
 ## Tech stack
 
 - **Next.js (React + TypeScript)** — the website and its server functions
-- **Supabase** — database (Postgres) + login, so multi-user is ready later
+- **Supabase** — database (Postgres) + login, so multi-user is ready later.
+  Schema: `supabase/migrations/`
 - **Vercel** — free hosting, works on phone and computer
 - **Claude API** — the live fragrance lookup
 - **Headless browser service** — only for FragranceNet and FragranceX
