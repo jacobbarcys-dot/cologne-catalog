@@ -61,15 +61,16 @@ the app shows a direct "search on this site" link instead.
 - **Next.js (React + TypeScript)** — the website and its server functions
 - **Supabase** — database (Postgres) + login, so multi-user is ready later.
   Schema: `supabase/migrations/`
-- **Vercel** — free hosting, works on phone and computer
+- **Hostinger** — hosting at cologne.jokubasbarcys.com (built with webpack)
 - **Claude API** — the live fragrance lookup
 - **Headless browser service** — only for FragranceNet and FragranceX
 
 ## Build steps
 
-1. **Foundation** — project skeleton, database tables, login, deploy a "hello" page.
-2. **My Collection** — add/edit/remove bottles (size, concentration, price paid,
-   where bought, my rating, notes); grid of cards; search, filter, sort.
+1. ✅ **Foundation** — project skeleton, database tables, login, deploy a "hello" page.
+2. ✅ **My Collection** — add/edit/remove bottles (size, concentration, price paid,
+   where bought, my rating, notes, rotation: Winter/Summer/Everyday…); grid of
+   cards; search, filter by rotation, sort. My 10 colognes entered.
 3. **Fragrance profiles** — the profile page (accord bars, pyramid, ratings,
    seasons, reviews summary) and the live lookup + search. Enter my 10 colognes.
 4. **Wishlist** — add from search, priority, target price, "I bought it" moves
