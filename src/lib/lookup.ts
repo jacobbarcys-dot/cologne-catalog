@@ -142,13 +142,35 @@ export async function lookupFragrance(query: string): Promise<LookupResult> {
   };
 }
 
-// Map API failures (bad key, rate limit, outage) to a short message for the page.
+// Map API failures (bad key, quota, outage) to a message for the page, including
+// Google's own explanation so quota and billing problems can be diagnosed.
 function apiErrorMessage(e: unknown) {
   const status = typeof e === "object" && e !== null && "status" in e ? Number(e.status) : undefined;
-  if (status === 400 && String(e).toLowerCase().includes("api key")) return "The Gemini API key isn't valid.";
-  if (status === 401 || status === 403) return "The Gemini API key isn't valid or lacks access.";
-  if (status === 429) return "Too many lookups right now. Try again in a minute.";
-  if (status !== undefined) return `Lookup failed (${status}). Please try again.`;
   console.error("Fragrance lookup failed", e);
-  return "Lookup failed. Please try again.";
+  const detail = googleMessage(e);
+  const suffix = detail ? ` Google says: “${detail}”` : "";
+  if (status === 401 || status === 403) return `The Gemini API key was rejected.${suffix}`;
+  if (status === 429) return `Gemini refused the request: quota or rate limit (429).${suffix}`;
+  if (status !== undefined) return `Lookup failed (${status}).${suffix}`;
+  return `Lookup failed.${suffix}`;
+}
+
+// Pull the human-readable message out of a Gemini error (often a JSON body).
+function googleMessage(e: unknown) {
+  if (!(e instanceof Error)) return "";
+  let msg = e.message;
+  const json = msg.indexOf("{");
+  if (json >= 0) {
+    try {
+      const body = JSON.parse(msg.slice(json));
+      msg = body?.error?.message ?? body?.message ?? msg;
+    } catch {
+      // not JSON; keep the raw message
+    }
+  }
+  return msg
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[key]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 300);
 }
