@@ -1,15 +1,16 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { GoogleGenAI, type Interactions } from "@google/genai";
 import { z } from "zod";
 
-// Live fragrance lookup: Claude researches the fragrance with web search, then a
-// second call turns the research notes into a structured profile. Two calls
-// because web search results carry citations, which can't be combined with
-// structured outputs in one request. Only used when ANTHROPIC_API_KEY is set.
+// Live fragrance lookup with Gemini: one call researches the fragrance with
+// Google Search grounding, a second turns the research notes into a structured
+// profile (JSON schema output). Only used when a Gemini API key is set.
 
-const MODEL = process.env.LOOKUP_MODEL ?? "claude-opus-5-5";
-const MAX_CONTINUATIONS = 4;
+const MODEL = process.env.LOOKUP_MODEL ?? "gemini-3.8-flash";
+
+export function geminiApiKey() {
+  return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? null;
+}
 
 const ProfileSchema = z.object({
   found: z.boolean().describe("false if no real fragrance matches the query"),
@@ -34,7 +35,8 @@ const ProfileSchema = z.object({
   longevity: z.number().nullable().describe("1-5: very weak, weak, moderate, long lasting, eternal"),
   sillage: z.number().nullable().describe("1-4: intimate, moderate, strong, enormous"),
   value_rating: z.number().nullable().describe("Value for money out of 5"),
-  seasons: z.object({ winter: z.number(), spring: z.number(), summer: z.number(), fall: z.number() })
+  seasons: z
+    .object({ winter: z.number(), spring: z.number(), summer: z.number(), fall: z.number() })
     .describe("Suitability 0-100, best season = 100"),
   time_of_day: z.object({ day: z.number(), night: z.number() }).describe("0-100, better one = 100"),
   review_summary: z.object({
@@ -45,13 +47,16 @@ const ProfileSchema = z.object({
   }),
   similar_fragrances: z.array(z.string()).describe("'Brand Name' strings"),
 });
+// Gemini accepts a subset of JSON Schema; drop the "$schema" header.
+const { $schema: _schemaUri, ...PROFILE_JSON_SCHEMA } = z.toJSONSchema(ProfileSchema, { target: "draft-7" });
+void _schemaUri;
 
 export type LookupProfile = z.infer<typeof ProfileSchema> & { sources: { title: string; url: string }[] };
 export type LookupResult = { ok: true; profile: LookupProfile } | { ok: false; error: string };
 
 const RESEARCH_PROMPT = (query: string) => `Research the fragrance that best matches this search: "${query}"
 
-Use web search (fragrance databases such as Fragrantica, Parfumo and Basenotes, plus retailer listings) to find:
+Search the web (fragrance databases such as Fragrantica, Parfumo and Basenotes, plus retailer listings) to find:
 - exact brand, name, concentration, release year, gender, perfumer(s)
 - main accords and their relative strength
 - the full note pyramid (top, heart, base)
@@ -65,73 +70,60 @@ If the search matches several flankers or concentrations, pick the one that most
 const clamp = (v: number | null, min: number, max: number) =>
   v === null || !Number.isFinite(v) ? null : Math.min(max, Math.max(min, v));
 
-export async function lookupFragrance(query: string): Promise<LookupResult> {
-  const client = new Anthropic();
-
-  // Step 1: research with web search. Server tools can pause a long turn
-  // (stop_reason "pause_turn"); resend to let the server continue.
-  const userTurn: Anthropic.Beta.BetaMessageParam = { role: "user", content: RESEARCH_PROMPT(query) };
-  const assistantContent: Anthropic.Beta.BetaContentBlockParam[] = [];
-  const blocks: Anthropic.Beta.BetaContentBlock[] = [];
-
-  try {
-    for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
-      const response = await client.beta.messages.create({
-        model: MODEL,
-        max_tokens: 16000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        output_config: { effort: "medium" },
-        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 6 }],
-        messages: assistantContent.length
-          ? [userTurn, { role: "assistant", content: assistantContent }]
-          : [userTurn],
-      });
-      blocks.push(...response.content);
-      if (response.stop_reason === "refusal") {
-        return { ok: false, error: "The lookup was declined. Try a different search." };
+function citations(steps: Interactions.Step[]) {
+  const sources = new Map<string, string>();
+  for (const step of steps) {
+    if (step.type !== "model_output") continue;
+    for (const block of step.content ?? []) {
+      if (block.type !== "text") continue;
+      for (const a of block.annotations ?? []) {
+        if (a.type === "url_citation" && a.url) sources.set(a.url, a.title ?? a.url);
       }
-      if (response.stop_reason !== "pause_turn") break;
-      assistantContent.push(...(response.content as Anthropic.Beta.BetaContentBlockParam[]));
     }
+  }
+  return [...sources].slice(0, 6).map(([url, title]) => ({ url, title }));
+}
+
+export async function lookupFragrance(query: string): Promise<LookupResult> {
+  const apiKey = geminiApiKey();
+  if (!apiKey) return { ok: false, error: "Live lookup isn't switched on yet." };
+  const client = new GoogleGenAI({ apiKey });
+
+  // Step 1: research with Google Search grounding.
+  let notes: string;
+  let sources: LookupProfile["sources"];
+  try {
+    const research = await client.interactions.create({
+      model: MODEL,
+      input: RESEARCH_PROMPT(query),
+      tools: [{ type: "google_search" }],
+      store: false,
+    });
+    if (research.status === "failed") return { ok: false, error: "The lookup failed. Please try again." };
+    notes = (research.output_text ?? "").trim();
+    sources = citations(research.steps);
   } catch (e) {
     return { ok: false, error: apiErrorMessage(e) };
   }
-
-  const notes = blocks
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
   if (!notes) return { ok: false, error: "The lookup didn't return any details. Please try again." };
 
-  const sources = new Map<string, string>();
-  for (const b of blocks) {
-    if (b.type === "web_search_tool_result" && Array.isArray(b.content)) {
-      for (const r of b.content) if (r.type === "web_search_result") sources.set(r.url, r.title);
-    }
-  }
-
-  // Step 2: structure the research notes.
-  let parsed: z.infer<typeof ProfileSchema> | null;
+  // Step 2: structure the research notes as JSON matching the profile schema.
+  let parsed: z.infer<typeof ProfileSchema>;
   try {
-    const response = await client.messages.parse({
+    const extraction = await client.interactions.create({
       model: MODEL,
-      max_tokens: 8000,
-      output_config: { effort: "low", format: zodOutputFormat(ProfileSchema) },
-      messages: [
-        {
-          role: "user",
-          content: `Turn these research notes about a fragrance into a structured profile. Use only what the notes support; use null or empty lists for anything unknown. Write the description and review summary in your own words.\n\nSearch: "${query}"\n\n<notes>\n${notes}\n</notes>`,
-        },
-      ],
+      input: `Turn these research notes about a fragrance into a structured profile. Use only what the notes support; use null or empty lists for anything unknown. Write the description and review summary in your own words.\n\nSearch: "${query}"\n\n<notes>\n${notes}\n</notes>`,
+      response_format: { type: "text", mime_type: "application/json", schema: PROFILE_JSON_SCHEMA },
+      store: false,
     });
-    parsed = response.parsed_output;
+    const result = ProfileSchema.safeParse(JSON.parse(extraction.output_text ?? ""));
+    if (!result.success) return { ok: false, error: "Couldn't read the lookup result. Please try again." };
+    parsed = result.data;
   } catch (e) {
+    if (e instanceof SyntaxError) return { ok: false, error: "Couldn't read the lookup result. Please try again." };
     return { ok: false, error: apiErrorMessage(e) };
   }
 
-  if (!parsed) return { ok: false, error: "Couldn't read the lookup result. Please try again." };
   if (!parsed.found) return { ok: false, error: `Couldn't find a fragrance matching "${query}".` };
 
   return {
@@ -145,14 +137,18 @@ export async function lookupFragrance(query: string): Promise<LookupResult> {
       longevity: clamp(parsed.longevity, 0, 5),
       sillage: clamp(parsed.sillage, 0, 4),
       value_rating: clamp(parsed.value_rating, 0, 5),
-      sources: [...sources].slice(0, 6).map(([url, title]) => ({ url, title })),
+      sources,
     },
   };
 }
 
+// Map API failures (bad key, rate limit, outage) to a short message for the page.
 function apiErrorMessage(e: unknown) {
-  if (e instanceof Anthropic.AuthenticationError) return "The Anthropic API key isn't valid.";
-  if (e instanceof Anthropic.RateLimitError) return "Too many lookups right now. Try again in a minute.";
-  if (e instanceof Anthropic.APIError) return `Lookup failed (${e.status ?? "network"}). Please try again.`;
-  throw e;
+  const status = typeof e === "object" && e !== null && "status" in e ? Number(e.status) : undefined;
+  if (status === 400 && String(e).toLowerCase().includes("api key")) return "The Gemini API key isn't valid.";
+  if (status === 401 || status === 403) return "The Gemini API key isn't valid or lacks access.";
+  if (status === 429) return "Too many lookups right now. Try again in a minute.";
+  if (status !== undefined) return `Lookup failed (${status}). Please try again.`;
+  console.error("Fragrance lookup failed", e);
+  return "Lookup failed. Please try again.";
 }
