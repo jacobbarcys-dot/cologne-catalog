@@ -6,7 +6,7 @@ import { BottleForm } from "../bottle-form";
 
 export const metadata = { title: "Add a bottle" };
 
-export default function NewBottlePage() {
+export default function NewBottlePage({ searchParams }: PageProps<"/collection/new">) {
   return (
     <>
       <AppHeader />
@@ -14,7 +14,7 @@ export default function NewBottlePage() {
         <h1 className="font-serif text-4xl">Add a bottle</h1>
         <div className="mt-6">
           <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-line" />}>
-            <NewBottleForm />
+            <NewBottleForm searchParams={searchParams} />
           </Suspense>
         </div>
       </main>
@@ -22,7 +22,16 @@ export default function NewBottlePage() {
   );
 }
 
-async function NewBottleForm() {
-  const [catalog, stores] = await Promise.all([getCatalog(), getStoreNames()]);
-  return <BottleForm action={createBottle} catalog={catalog} stores={stores} cancelHref="/collection" />;
+async function NewBottleForm({ searchParams }: { searchParams: PageProps<"/collection/new">["searchParams"] }) {
+  const [catalog, stores, params] = await Promise.all([getCatalog(), getStoreNames(), searchParams]);
+  const preselected = catalog.find((f) => f.id === params.fragrance);
+  return (
+    <BottleForm
+      action={createBottle}
+      catalog={catalog}
+      preselected={preselected}
+      stores={stores}
+      cancelHref={preselected ? `/fragrance/${preselected.slug}` : "/collection"}
+    />
+  );
 }

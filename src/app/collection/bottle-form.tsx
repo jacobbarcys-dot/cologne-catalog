@@ -9,6 +9,7 @@ type Props = {
   action: (prev: FormState, form: FormData) => Promise<FormState>;
   stores: string[];
   catalog?: FragranceSummary[]; // create mode only
+  preselected?: FragranceSummary;
   bottle?: Bottle; // edit mode only
   cancelHref: string;
 };
@@ -17,13 +18,13 @@ const input =
   "w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-base outline-none focus:border-accent sm:text-sm";
 const label = "mb-1 block text-xs font-medium uppercase tracking-wider text-muted";
 
-export function BottleForm({ action, stores, catalog, bottle, cancelHref }: Props) {
+export function BottleForm({ action, stores, catalog, preselected, bottle, cancelHref }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [fill, setFill] = useState(bottle?.fill_level ?? 100);
 
   return (
     <form action={formAction} className="space-y-6">
-      {catalog && <FragrancePicker catalog={catalog} />}
+      {catalog && <FragrancePicker catalog={catalog} initial={preselected} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -185,9 +186,9 @@ export function BottleForm({ action, stores, catalog, bottle, cancelHref }: Prop
   );
 }
 
-function FragrancePicker({ catalog }: { catalog: FragranceSummary[] }) {
+function FragrancePicker({ catalog, initial }: { catalog: FragranceSummary[]; initial?: FragranceSummary }) {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<FragranceSummary | null>(null);
+  const [selected, setSelected] = useState<FragranceSummary | null>(initial ?? null);
   const [addingNew, setAddingNew] = useState(catalog.length === 0);
 
   const matches = useMemo(() => {

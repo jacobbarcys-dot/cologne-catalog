@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/app-header";
 import { BottleArt } from "@/components/bottle-art";
+import { FragranceProfile } from "@/components/fragrance-profile";
 import { getMyBottle, ROTATIONS } from "@/lib/collection";
 import { formatPrice, formatSize } from "@/lib/format";
+import { getFragrance } from "@/lib/fragrance";
 import { deleteBottle } from "../actions";
 import { DeleteButton } from "./delete-button";
 
@@ -32,6 +34,7 @@ async function BottleDetail({ id }: { id: string }) {
   const bottle = await getMyBottle(id);
   if (!bottle) notFound();
   const { fragrance } = bottle;
+  const profile = await getFragrance(fragrance.slug);
 
   const facts = [
     { label: "Rotation", value: ROTATIONS.find((r) => r.id === bottle.rotation)?.label },
@@ -94,9 +97,17 @@ async function BottleDetail({ id }: { id: string }) {
         </section>
       )}
 
-      <section className="mt-6 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
-        Accords, note pyramid, ratings, and when to wear arrive with fragrance search in Step 3.
-      </section>
+      {profile && (
+        <section className="mt-10">
+          <div className="mb-4 flex items-baseline justify-between">
+            <h2 className="font-serif text-3xl">Fragrance profile</h2>
+            <Link href={`/fragrance/${fragrance.slug}`} className="text-sm text-muted hover:text-ink">
+              Open fragrance page →
+            </Link>
+          </div>
+          <FragranceProfile fragrance={profile} />
+        </section>
+      )}
     </article>
   );
 }
