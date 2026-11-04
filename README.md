@@ -24,11 +24,17 @@ Only accounts in the `cologne_members` table can use the app.
 
 ### Optional: live fragrance lookup
 
-Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`; server-side only, never
-`NEXT_PUBLIC_`) to switch on "Look up" on the Search page and "Refresh details"
-on fragrance pages. Lookups use Gemini with Google Search grounding. Without a
-key, search covers the existing catalog only. `LOOKUP_MODEL` overrides the model
-(default `gemini-3.8-flash`).
+Set one of these server-side keys (never `NEXT_PUBLIC_`) to switch on "Look up"
+on the Search page and "Refresh details" on fragrance pages:
+
+- `NVIDIA_API_KEY` (build.nvidia.com, free): model knowledge only, no web
+  search. Model list in `src/lib/lookup/nvidia.ts`; override the first with
+  `NVIDIA_MODEL`.
+- `GEMINI_API_KEY` / `GOOGLE_API_KEY`: Google Search grounded on a paid tier,
+  model knowledge on the free tier. Override the first model with `GEMINI_MODEL`.
+
+NVIDIA is used when both are set. Without a key, search covers the existing
+catalog only.
 
 ## Database
 

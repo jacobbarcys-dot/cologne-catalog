@@ -243,7 +243,7 @@ export function FragranceProfile({ fragrance: f }: { fragrance: Fragrance }) {
 
       <footer className="text-xs text-muted md:col-span-2">
         {f.profile_origin === "model_knowledge"
-          ? "From Gemini's built-in knowledge, not web-verified; details may be off, especially for new or rare releases. Ratings and wear votes are approximate."
+          ? "From an AI model's built-in knowledge, not web-verified; details may be off, especially for new or rare releases. Ratings and wear votes are approximate."
           : "Compiled from public fragrance sources; ratings and wear votes are approximate."}
         {f.looked_up_at &&
           ` Updated ${new Date(f.looked_up_at).toLocaleDateString("en-US", { dateStyle: "medium" })}.`}
