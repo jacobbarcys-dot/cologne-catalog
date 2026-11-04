@@ -69,4 +69,5 @@ export type Fragrance = FragranceSummary & {
   sources: { title: string; url: string }[];
   lookup_status: "pending" | "complete" | "failed";
   looked_up_at: string | null;
+  profile_origin: "web_search" | "model_knowledge" | "curated" | null;
 };

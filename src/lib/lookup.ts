@@ -4,7 +4,10 @@ import { z } from "zod";
 
 // Live fragrance lookup with Gemini: one call researches the fragrance with
 // Google Search grounding, a second turns the research notes into a structured
-// profile (JSON schema output). Only used when a Gemini API key is set.
+// profile (JSON schema output). Search grounding isn't available on Gemini's
+// free tier (it returns 429), so the research step then falls back to the
+// model's own knowledge and the profile is marked as not web-verified.
+// Only used when a Gemini API key is set.
 
 const MODEL = process.env.LOOKUP_MODEL ?? "gemini-3.8-flash";
 
@@ -51,12 +54,16 @@ const ProfileSchema = z.object({
 const { $schema: _schemaUri, ...PROFILE_JSON_SCHEMA } = z.toJSONSchema(ProfileSchema, { target: "draft-7" });
 void _schemaUri;
 
-export type LookupProfile = z.infer<typeof ProfileSchema> & { sources: { title: string; url: string }[] };
+export type ProfileOrigin = "web_search" | "model_knowledge";
+export type LookupProfile = z.infer<typeof ProfileSchema> & {
+  sources: { title: string; url: string }[];
+  origin: ProfileOrigin;
+};
 export type LookupResult = { ok: true; profile: LookupProfile } | { ok: false; error: string };
 
-const RESEARCH_PROMPT = (query: string) => `Research the fragrance that best matches this search: "${query}"
+const RESEARCH_PROMPT = (query: string, withSearch: boolean) => `Research the fragrance that best matches this search: "${query}"
 
-Search the web (fragrance databases such as Fragrantica, Parfumo and Basenotes, plus retailer listings) to find:
+${withSearch ? "Search the web (fragrance databases such as Fragrantica, Parfumo and Basenotes, plus retailer listings)" : "You have no web access, so use what you know (from fragrance databases such as Fragrantica, Parfumo and Basenotes)"} to find:
 - exact brand, name, concentration, release year, gender, perfumer(s)
 - main accords and their relative strength
 - the full note pyramid (top, heart, base)
@@ -89,19 +96,32 @@ export async function lookupFragrance(query: string): Promise<LookupResult> {
   if (!apiKey) return { ok: false, error: "Live lookup isn't switched on yet." };
   const client = new GoogleGenAI({ apiKey });
 
-  // Step 1: research with Google Search grounding.
+  // Step 1: research with Google Search grounding, or from the model's own
+  // knowledge when grounding is refused (free tier).
   let notes: string;
-  let sources: LookupProfile["sources"];
+  let sources: LookupProfile["sources"] = [];
+  let origin: ProfileOrigin = "web_search";
   try {
-    const research = await client.interactions.create({
-      model: MODEL,
-      input: RESEARCH_PROMPT(query),
-      tools: [{ type: "google_search" }],
-      store: false,
-    });
+    let research;
+    try {
+      research = await client.interactions.create({
+        model: MODEL,
+        input: RESEARCH_PROMPT(query, true),
+        tools: [{ type: "google_search" }],
+        store: false,
+      });
+    } catch (e) {
+      if (errorStatus(e) !== 429) throw e;
+      origin = "model_knowledge";
+      research = await client.interactions.create({
+        model: MODEL,
+        input: RESEARCH_PROMPT(query, false),
+        store: false,
+      });
+    }
     if (research.status === "failed") return { ok: false, error: "The lookup failed. Please try again." };
     notes = (research.output_text ?? "").trim();
-    sources = citations(research.steps);
+    if (origin === "web_search") sources = citations(research.steps);
   } catch (e) {
     return { ok: false, error: apiErrorMessage(e) };
   }
@@ -138,14 +158,19 @@ export async function lookupFragrance(query: string): Promise<LookupResult> {
       sillage: clamp(parsed.sillage, 0, 4),
       value_rating: clamp(parsed.value_rating, 0, 5),
       sources,
+      origin,
     },
   };
 }
 
 // Map API failures (bad key, quota, outage) to a message for the page, including
 // Google's own explanation so quota and billing problems can be diagnosed.
+function errorStatus(e: unknown) {
+  return typeof e === "object" && e !== null && "status" in e ? Number(e.status) : undefined;
+}
+
 function apiErrorMessage(e: unknown) {
-  const status = typeof e === "object" && e !== null && "status" in e ? Number(e.status) : undefined;
+  const status = errorStatus(e);
   console.error("Fragrance lookup failed", e);
   const detail = googleMessage(e);
   const suffix = detail ? ` Google says: “${detail}”` : "";
