@@ -22,6 +22,13 @@ Supabase → Authentication → URL Configuration → Redirect URLs.
 
 Only accounts in the `cologne_members` table can use the app.
 
+### Optional: live fragrance lookup
+
+Set `ANTHROPIC_API_KEY` (server-side only, never `NEXT_PUBLIC_`) to switch on
+"Look up" on the Search page and "Refresh details" on fragrance pages. Without
+it, search covers the existing catalog only. `LOOKUP_MODEL` overrides the model
+(default `claude-opus-5-5`).
+
 ## Database
 
 Schema lives in `supabase/migrations/`. Tables are prefixed `cologne_` because

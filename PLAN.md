@@ -71,8 +71,10 @@ the app shows a direct "search on this site" link instead.
 2. ✅ **My Collection** — add/edit/remove bottles (size, concentration, price paid,
    where bought, my rating, notes, rotation: Winter/Summer/Everyday…); grid of
    cards; search, filter by rotation, sort. My 10 colognes entered.
-3. **Fragrance profiles** — the profile page (accord bars, pyramid, ratings,
-   seasons, reviews summary) and the live lookup + search. Enter my 10 colognes.
+3. ✅ **Fragrance profiles** — profile page (accord bars, pyramid, ratings,
+   seasons, reviews summary), typo-tolerant catalog search, my 10 colognes
+   filled in. Live lookup is built but stays off until `ANTHROPIC_API_KEY` is
+   set in Hostinger; until then new fragrances are added by Claude in sessions.
 4. **Wishlist** — add from search, priority, target price, "I bought it" moves
    it to the collection.
 5. **Price checker** — store adapters one at a time, starting with the easy

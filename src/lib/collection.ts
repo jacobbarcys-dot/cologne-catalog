@@ -9,7 +9,7 @@ export type { Bottle, FragranceSummary, Rotation } from "@/lib/constants";
 const BOTTLE_SELECT = `
   id, size_ml, concentration, fill_level, purchase_price, purchase_date,
   purchased_from, my_rating, rotation, notes, created_at,
-  fragrance:cologne_fragrances!inner (id, brand, name, concentration, release_year, image_url)
+  fragrance:cologne_fragrances!inner (id, slug, brand, name, concentration, release_year, image_url)
 `;
 
 // numeric columns come back from PostgREST as strings; normalise them.
@@ -52,7 +52,7 @@ export async function getCatalog(): Promise<FragranceSummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("cologne_fragrances")
-    .select("id, brand, name, concentration, release_year, image_url")
+    .select("id, slug, brand, name, concentration, release_year, image_url")
     .order("brand")
     .order("name");
   if (error) throw new Error(error.message);
