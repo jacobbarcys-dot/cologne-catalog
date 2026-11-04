@@ -75,7 +75,7 @@ async function QueryResults({ q }: { q: string }) {
           </>
         ) : (
           <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-            Live lookup switches on once a Gemini API key is added. Until then, ask Claude to add
+            Live lookup switches on once an NVIDIA or Gemini API key is added. Until then, ask Claude to add
             this fragrance to the catalog.
           </p>
         )}
