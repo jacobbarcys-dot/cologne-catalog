@@ -8,7 +8,7 @@ const FRAGRANCE_COLUMNS = `
   id, slug, brand, name, concentration, release_year, image_url, gender, perfumers,
   description, accords, notes_top, notes_heart, notes_base, rating_overall,
   rating_votes, longevity, sillage, value_rating, seasons, time_of_day,
-  review_summary, similar_fragrances, sources, lookup_status, looked_up_at
+  review_summary, similar_fragrances, sources, lookup_status, looked_up_at, profile_origin
 `;
 
 // numeric columns come back from PostgREST as strings; normalise them.

@@ -31,6 +31,7 @@ function profileDetails(p: LookupProfile) {
     review_summary: p.review_summary,
     similar_fragrances: p.similar_fragrances,
     sources: p.sources,
+    profile_origin: p.origin,
     lookup_status: "complete",
     looked_up_at: new Date().toISOString(),
   };
