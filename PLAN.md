@@ -62,7 +62,7 @@ the app shows a direct "search on this site" link instead.
 - **Supabase** — database (Postgres) + login, so multi-user is ready later.
   Schema: `supabase/migrations/`
 - **Hostinger** — hosting at cologne.jokubasbarcys.com (built with webpack)
-- **Claude API** — the live fragrance lookup
+- **Gemini API** — the live fragrance lookup (Google Search grounding)
 - **Headless browser service** — only for FragranceNet and FragranceX
 
 ## Build steps
@@ -73,8 +73,8 @@ the app shows a direct "search on this site" link instead.
    cards; search, filter by rotation, sort. My 10 colognes entered.
 3. ✅ **Fragrance profiles** — profile page (accord bars, pyramid, ratings,
    seasons, reviews summary), typo-tolerant catalog search, my 10 colognes
-   filled in. Live lookup is built but stays off until `ANTHROPIC_API_KEY` is
-   set in Hostinger; until then new fragrances are added by Claude in sessions.
+   filled in. Live lookup uses Gemini with Google Search grounding and turns
+   on when `GEMINI_API_KEY` is set in Hostinger.
 4. **Wishlist** — add from search, priority, target price, "I bought it" moves
    it to the collection.
 5. **Price checker** — store adapters one at a time, starting with the easy

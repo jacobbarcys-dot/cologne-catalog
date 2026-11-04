@@ -1,6 +1,7 @@
 import "server-only";
 import { getCurrentUser } from "@/lib/auth";
 import type { Fragrance, FragranceSummary } from "@/lib/constants";
+import { geminiApiKey } from "@/lib/lookup";
 import { createClient } from "@/lib/supabase/server";
 
 const FRAGRANCE_COLUMNS = `
@@ -63,7 +64,7 @@ export async function getMyBottleIds(fragranceId: string): Promise<string[]> {
   return (data ?? []).map((b) => b.id);
 }
 
-// The live lookup switches on once an Anthropic API key is configured.
+// The live lookup switches on once a Gemini API key is configured.
 export function lookupEnabled() {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(geminiApiKey());
 }
