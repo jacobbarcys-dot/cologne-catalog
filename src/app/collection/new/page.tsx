@@ -25,13 +25,15 @@ export default function NewBottlePage({ searchParams }: PageProps<"/collection/n
 async function NewBottleForm({ searchParams }: { searchParams: PageProps<"/collection/new">["searchParams"] }) {
   const [catalog, stores, params] = await Promise.all([getCatalog(), getStoreNames(), searchParams]);
   const preselected = catalog.find((f) => f.id === params.fragrance);
+  const wishlistId = typeof params.wishlist === "string" ? params.wishlist : undefined;
   return (
     <BottleForm
       action={createBottle}
       catalog={catalog}
       preselected={preselected}
+      wishlistId={wishlistId}
       stores={stores}
-      cancelHref={preselected ? `/fragrance/${preselected.slug}` : "/collection"}
+      cancelHref={wishlistId ? "/wishlist" : preselected ? `/fragrance/${preselected.slug}` : "/collection"}
     />
   );
 }

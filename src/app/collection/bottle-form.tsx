@@ -10,6 +10,7 @@ type Props = {
   stores: string[];
   catalog?: FragranceSummary[]; // create mode only
   preselected?: FragranceSummary;
+  wishlistId?: string; // "I bought it" from the wishlist
   bottle?: Bottle; // edit mode only
   cancelHref: string;
 };
@@ -18,13 +19,14 @@ const input =
   "w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-base outline-none focus:border-accent sm:text-sm";
 const label = "mb-1 block text-xs font-medium uppercase tracking-wider text-muted";
 
-export function BottleForm({ action, stores, catalog, preselected, bottle, cancelHref }: Props) {
+export function BottleForm({ action, stores, catalog, preselected, wishlistId, bottle, cancelHref }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [fill, setFill] = useState(bottle?.fill_level ?? 100);
 
   return (
     <form action={formAction} className="space-y-6">
       {catalog && <FragrancePicker catalog={catalog} initial={preselected} />}
+      {wishlistId && <input type="hidden" name="wishlist_id" value={wishlistId} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

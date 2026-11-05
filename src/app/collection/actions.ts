@@ -99,6 +99,10 @@ export async function createBottle(_prev: FormState, form: FormData): Promise<Fo
     .single();
   if (error) return { error: "Couldn't save the bottle. Please try again." };
 
+  // Bought from the wishlist: it's on the shelf now.
+  const wishlistId = text(form, "wishlist_id");
+  if (wishlistId) await supabase.from("cologne_wishlist").delete().eq("id", wishlistId);
+
   redirect(`/collection/${data.id}`);
 }
 
