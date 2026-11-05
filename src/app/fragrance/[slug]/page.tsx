@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/app-header";
 import { FragranceProfile } from "@/components/fragrance-profile";
-import { getFragrance, getMyBottleIds, lookupEnabled } from "@/lib/fragrance";
+import { PricePanel } from "@/components/price-panel";
+import { getFragrance, getMyBottles, lookupEnabled } from "@/lib/fragrance";
+import { getWishlistEntry } from "@/lib/wishlist";
 import { RefreshButton } from "./refresh-button";
+import { WishlistButton } from "./wishlist-button";
 
 export const metadata = { title: "Fragrance" };
 
@@ -29,7 +32,8 @@ export default function FragrancePage({ params }: PageProps<"/fragrance/[slug]">
 async function FragranceDetail({ slug }: { slug: string }) {
   const fragrance = await getFragrance(slug);
   if (!fragrance) notFound();
-  const owned = await getMyBottleIds(fragrance.id);
+  const [owned, wish] = await Promise.all([getMyBottles(fragrance.id), getWishlistEntry(fragrance.id)]);
+  const preferredSizeMl = wish?.desired_size_ml ?? owned.find((b) => b.size_ml)?.size_ml ?? 100;
 
   const meta = [
     fragrance.concentration,
@@ -49,7 +53,7 @@ async function FragranceDetail({ slug }: { slug: string }) {
         <div className="mt-4 flex flex-wrap gap-3">
           {owned.length > 0 ? (
             <Link
-              href={`/collection/${owned[0]}`}
+              href={`/collection/${owned[0].id}`}
               className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-paper hover:opacity-90"
             >
               ✓ In your collection
@@ -62,11 +66,16 @@ async function FragranceDetail({ slug }: { slug: string }) {
               + Add to collection
             </Link>
           )}
+          <WishlistButton fragranceId={fragrance.id} onWishlist={Boolean(wish)} />
           {lookupEnabled() && <RefreshButton slug={fragrance.slug} />}
         </div>
       </header>
 
       <div className="mt-8">
+        <PricePanel fragrance={fragrance} preferredSizeMl={preferredSizeMl} />
+      </div>
+
+      <div className="mt-4">
         <FragranceProfile fragrance={fragrance} />
       </div>
     </article>

@@ -65,3 +65,34 @@ export async function getStoreNames(): Promise<string[]> {
   const { data } = await supabase.from("cologne_stores").select("name").order("sort_order");
   return (data ?? []).map((s) => s.name);
 }
+
+export type ShelfItem = {
+  bottle_id: string;
+  rotation: string | null;
+  fill_level: number | null;
+  fragrance: {
+    slug: string;
+    brand: string;
+    name: string;
+    accords: { name: string; strength: number }[];
+    seasons: Partial<Record<"winter" | "spring" | "summer" | "fall", number>>;
+    time_of_day: Partial<Record<"day" | "night", number>>;
+  };
+};
+
+// Bottles with the profile fields the home page needs (wear suggestions, scent profile).
+export async function getShelf(): Promise<ShelfItem[]> {
+  const user = await getCurrentUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cologne_bottles")
+    .select("id, rotation, fill_level, fragrance:cologne_fragrances!inner (slug, brand, name, accords, seasons, time_of_day)")
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((b) => ({
+    bottle_id: b.id,
+    rotation: b.rotation,
+    fill_level: b.fill_level,
+    fragrance: b.fragrance as unknown as ShelfItem["fragrance"],
+  }));
+}

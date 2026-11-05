@@ -53,15 +53,15 @@ export async function searchCatalog(query: string): Promise<SearchHit[]> {
 }
 
 // Bottles of this fragrance on the current user's shelf.
-export async function getMyBottleIds(fragranceId: string): Promise<string[]> {
+export async function getMyBottles(fragranceId: string): Promise<{ id: string; size_ml: number | null }[]> {
   const user = await getCurrentUser();
   const supabase = await createClient();
   const { data } = await supabase
     .from("cologne_bottles")
-    .select("id")
+    .select("id, size_ml")
     .eq("user_id", user.id)
     .eq("fragrance_id", fragranceId);
-  return (data ?? []).map((b) => b.id);
+  return (data ?? []).map((b) => ({ id: b.id, size_ml: b.size_ml === null ? null : Number(b.size_ml) }));
 }
 
 // The live lookup switches on once an NVIDIA or Gemini API key is configured.

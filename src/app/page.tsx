@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/app-header";
+import { AccordBars } from "@/components/fragrance-profile";
 import { getCurrentUser } from "@/lib/auth";
+import { getShelf } from "@/lib/collection";
+import { formatPrice } from "@/lib/format";
+import { getLatestBestPrices } from "@/lib/prices/data";
 import { createClient } from "@/lib/supabase/server";
+import { getWishlist } from "@/lib/wishlist";
+import { WearToday } from "./wear-today";
 
 export default function HomePage() {
   return (
@@ -21,17 +27,31 @@ async function Dashboard() {
   const user = await getCurrentUser();
   const supabase = await createClient();
 
-  const [bottles, wishlist, catalog] = await Promise.all([
-    supabase.from("cologne_bottles").select("id", { count: "exact", head: true }),
-    supabase.from("cologne_wishlist").select("id", { count: "exact", head: true }),
+  const [shelf, wishlist, catalog] = await Promise.all([
+    getShelf(),
+    getWishlist(),
     supabase.from("cologne_fragrances").select("id", { count: "exact", head: true }),
   ]);
+  const best = await getLatestBestPrices(wishlist.map((w) => w.fragrance.id));
+  const deals = wishlist.filter((w) => {
+    const b = best[w.fragrance.id];
+    return b && w.target_price !== null && b.price <= w.target_price;
+  });
+
+  // Scent profile: accord strengths summed across the shelf, scaled so the top one is 100.
+  const totals = new Map<string, number>();
+  for (const item of shelf) {
+    for (const a of item.fragrance.accords ?? []) totals.set(a.name, (totals.get(a.name) ?? 0) + a.strength);
+  }
+  const top = [...totals].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const max = top[0]?.[1] ?? 1;
+  const scentProfile = top.map(([name, total]) => ({ name, strength: Math.round((total / max) * 100) }));
 
   const firstName = user.name.split(" ")[0];
   const cards = [
-    { href: "/collection", title: "My Collection", count: bottles.count ?? 0, unit: "bottles", blurb: "Everything on your shelf." },
+    { href: "/collection", title: "My Collection", count: shelf.length, unit: "bottles", blurb: "Everything on your shelf." },
     { href: "/search", title: "Search Fragrances", count: catalog.count ?? 0, unit: "in catalog", blurb: "Accords, notes, ratings, when to wear." },
-    { href: "/wishlist", title: "Wishlist", count: wishlist.count ?? 0, unit: "wanted", blurb: "Track what's next and find the best price." },
+    { href: "/wishlist", title: "Wishlist", count: wishlist.length, unit: "wanted", blurb: "Track what's next and find the best price." },
   ];
 
   return (
@@ -53,6 +73,44 @@ async function Dashboard() {
           </Link>
         ))}
       </div>
+
+      {deals.length > 0 && (
+        <section className="mt-6 rounded-2xl border border-green-600/40 bg-green-600/10 p-5">
+          <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-green-700 dark:text-green-400">
+            Below your target price
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {deals.map((w) => (
+              <li key={w.id}>
+                <Link href={`/fragrance/${w.fragrance.slug}#prices`} className="flex justify-between gap-3 hover:underline">
+                  <span>
+                    {w.fragrance.brand} {w.fragrance.name}
+                  </span>
+                  <span className="font-medium">
+                    {formatPrice(best[w.fragrance.id].price)}{" "}
+                    <span className="text-xs text-muted">target {formatPrice(w.target_price)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {shelf.length > 0 && (
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <WearToday shelf={shelf} />
+          {scentProfile.length > 0 && (
+            <section className="rounded-2xl border border-line bg-surface p-5">
+              <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-muted">Your scent profile</h2>
+              <p className="mt-1 text-xs text-muted">Main accords across your whole collection</p>
+              <div className="mt-4">
+                <AccordBars accords={scentProfile} compact />
+              </div>
+            </section>
+          )}
+        </div>
+      )}
     </>
   );
 }

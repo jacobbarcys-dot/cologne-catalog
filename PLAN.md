@@ -75,8 +75,14 @@ the app shows a direct "search on this site" link instead.
    seasons, reviews summary), typo-tolerant catalog search, my 10 colognes
    filled in. Live lookup uses NVIDIA's free endpoint (`NVIDIA_API_KEY`) or
    Gemini (`GEMINI_API_KEY`), whichever key is set in Hostinger.
-4. **Wishlist** — add from search, priority, target price, "I bought it" moves
+4. ✅ **Wishlist** — add from any fragrance page, priority, target price,
+   desired size, best price found + "Below target!" badge, "I bought it" moves
    it to the collection.
-5. **Price checker** — store adapters one at a time, starting with the easy
-   ones; comparison table; price history saved per check.
-6. **Polish** — stats dashboard, phone home-screen install, look and feel.
+5. ✅ **Price checker** — "Check prices" on any fragrance. Aura, MaxAroma and
+   Venba are checked automatically (their robots.txt allows search); Jomashop,
+   eDiscountPerfumes, FragranceNet and FragranceX disallow or block automated
+   search, so the app links to their search and lets me add a price by hand.
+   Full bottles only, matched on brand/name/concentration, testers and stock
+   flagged, size filter, best-price history.
+6. ✅ **Polish** — home dashboard with "what to wear today", scent profile and
+   price-target alerts; PNG home-screen icon for iPhone.
